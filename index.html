@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Para - Ride Hailing Service</title>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: rgb(0,51,102);
+            background: linear-gradient(159deg, rgba(0,51,102,1) 0%, rgba(15,82,186,1) 100%);
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .landing { 
+            display: flex; min-height: 100vh; align-items: center; 
+            justify-content: center; text-align: center; color: white; 
+        }
+        .logo { 
+            font-size: 4rem; font-weight: bold; margin-bottom: 20px; 
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+        }
+        .login-form {
+            background: rgba(255,255,255,0.15); backdrop-filter: blur(20px);
+            padding: 40px; border-radius: 25px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            max-width: 400px; width: 100%;
+        }
+        .login-form input {
+            width: 100%; padding: 15px; margin: 15px 0; border: none;
+            border-radius: 15px; font-size: 1.1rem; background: rgba(255,255,255,0.9);
+        }
+        .login-form button {
+            width: 100%; padding: 15px; background: #ff6b6b; color: white;
+            border: none; border-radius: 15px; font-size: 1.1rem; font-weight: bold;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .login-form button:hover { background: #e55a5a; transform: translateY(-2px); }
+        .btn-group { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+        .btn { 
+            padding: 15px 30px; border: none; border-radius: 50px; 
+            font-size: 1.1rem; font-weight: bold; cursor: pointer; 
+            transition: all 0.3s ease; text-decoration: none; display: inline-block; 
+        }
+        .btn-primary { background: #ff6b6b; color: white; }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; backdrop-filter: blur(10px); }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .dashboard { display: none; min-height: 100vh; color: #333; }
+        .header { 
+            background: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            display: flex; justify-content: space-between; align-items: center; 
+        }
+        .nav { display: flex; gap: 10px; flex-wrap: wrap; }
+        .nav-btn { 
+            padding: 10px 15px; background: #667eea; color: white; 
+            border: none; border-radius: 25px; cursor: pointer; transition: all 0.3s ease; 
+            font-size: 0.9rem;
+        }
+        .nav-btn.active, .nav-btn:hover { background: #764ba2; transform: translateY(-2px); }
+        .logout { background: #ff6b6b; padding: 10px 20px; color: white; border: none; border-radius: 25px; cursor: pointer; }
+        .content { padding: 40px 20px; min-height: 80vh; }
+        #map { height: 500px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .ride-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .location-selector { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .location-btn { 
+            padding: 10px 15px; background: #f8f9fa; border: 2px solid #e9ecef; 
+            border-radius: 25px; cursor: pointer; transition: all 0.3s ease; 
+            font-size: 0.85rem; white-space: nowrap; 
+        }
+        .location-btn:hover, .location-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .ride-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .price { font-size: 2rem; font-weight: bold; color: #28a745; }
+        .passenger-type { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .passenger-btn { 
+            padding: 12px 20px; border: 2px solid #e9ecef; background: #f8f9fa;
+            border-radius: 25px; cursor: pointer; transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        .passenger-btn.active { background: #28a745; color: white; border-color: #28a745; }
+        .fare-info {
+            background: #e8f5e8; padding: 15px; border-radius: 10px; margin-bottom: 20px;
+            border-left: 5px solid #28a745;
+        }
+        .fare-info h4 { color: #28a745; margin-bottom: 10px; }
+        .fare-info ul { color: #666; font-size: 0.95rem; }
+        .tracker { background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        .tracker-stage { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+        .tracker-dot { width: 12px; height: 12px; border-radius: 50%; background: #ddd; transition: all 0.3s ease; }
+        .tracker-dot.active { background: #ff6b6b; transform: scale(1.2); box-shadow: 0 0 10px rgba(255,107,107,0.5); }
+        .tracker-line { flex: 1; height: 3px; background: #ddd; }
+        .tracker-line.active { background: #ff6b6b; }
+        .history-item, .rating-item, .profile-item { 
+            background: white; padding: 20px; border-radius: 15px; 
+            margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); 
+        }
+        .stars { color: #ffc107; font-size: 1.2rem; }
+        .user-type { font-size: 0.9rem; color: #666; margin-bottom: 20px; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .error-message { color: #ff6b6b; font-size: 0.9rem; margin-top: 5px; display: none; }
+        @media (max-width: 768px) { 
+            .nav { gap: 5px; }
+            .nav-btn { padding: 8px 12px; font-size: 0.8rem; }
+            .ride-info { flex-direction: column; gap: 15px; text-align: center; }
+            .location-selector, .passenger-type { justify-content: center; }
+            .location-btn, .passenger-btn { font-size: 0.8rem; padding: 8px 12px; }
+}
+
+/* ✅ DRIVER REQUEST CARD DESIGN */
+
+.request-card {
+    background: white;
+    padding: 20px;
+    border-radius: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.request-info p {
+    margin: 5px 0;
+    font-size: 0.95rem;
+}
+
+.request-info .fare {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.request-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.accept-btn {
+    padding: 12px 20px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.complete-btn {
+    padding: 12px 20px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.accept-btn:hover {
+    background: #218838;
+}
+
+.complete-btn:hover {
+    background: #5a6268;
+}
+
+.request-card:hover {
+    transform: translateY(-3px);
+    transition: 0.2s;
+}
+    </style>
+</head>
+<body>
+
+    <!-- Landing Page -->
+    <div id="landing" class="landing">
+        <div class="container">
+            <div class="logo">PARA</div>
+            <h1><strong>Safe & Fast Rides</strong></h1>
+            <p style="font-size: 1.2rem; margin-bottom: 40px;">Serving The Good Samaritan Colleges, Inc.</p>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="showLoginForm('user')">👤 User Login</button>
+                <button class="btn btn-secondary" onclick="showLoginForm('driver')">🚗 Driver Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Forms -->
+    <div id="loginForms" style="display: none;">
+        <div class="container" style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+            <div id="userLoginForm" class="login-form" style="display: none;">
+                <h2>👤 User Login</h2>
+                <input type="text" id="userName" placeholder="Enter your full name">
+                <div class="error-message" id="userError">Please enter a valid full name (at least 2 characters)</div>
+                <button onclick="login('user')">Login</button>
+                <button class="btn btn-secondary" onclick="backToLanding()" style="margin-top: 10px; background: rgba(255,255,255,0.2);">← Back</button>
+            </div>
+            <div id="driverLoginForm" class="login-form" style="display: none;">
+                <h2>🚗 Driver Login</h2>
+                <input type="text" id="driverId" placeholder="Enter 6-digit Driver ID (123456)" maxlength="6">
+                <div class="error-message" id="driverError">Please enter a valid 6-digit Driver ID</div>
+                <button onclick="login('driver')">Login</button>
+                <button class="btn btn-secondary" onclick="backToLanding()" style="margin-top: 10px; background: rgba(255,255,255,0.2);">← Back</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard">
+        <div class="header">
+            <div class="logo" style="font-size: 2rem; background: none; -webkit-text-fill-color: #667eea;">PARA</div>
+            <div class="nav" id="userNav">
+                <!-- Dynamic navigation will be populated by JavaScript -->
+            </div>
+            
+            <button class="logout" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="container">
+            <div class="content">
+                <div id="home" class="section active">
+                    <div class="user-type" id="userType"></div>
+                    <div class="ride-card">
+                        <h2>📍 Book a Ride (2km Radius)</h2>
+                        <p style="color: #666; margin-bottom: 20px;">Good Samaritan Colleges Area - Nueva Ecija</p>
+                        
+                        <div class="fare-info">
+                            <h4>💰 Official Fare Rates</h4>
+                            <ul>
+                                <li>👤 Single Passenger: <strong>₱20</strong></li>
+                                <li>👥 Group: <strong>₱15 per passenger</strong></li>
+                                <li>♿ PWD: <strong>₱15 (1 PWD) / ₱10 each (2+ PWD)</strong></li>
+                            </ul>
+                        </div>
+                       
+                        <div id="map"></div>
+                        <div class="location-selector">
+                            <button class="location-btn active" data-lat="15.491711" data-lng="120.973841" data-name="Good Samaritan Colleges">Good Samaritan</button>
+                            <button class="location-btn" data-lat="15.48924" data-lng="120.97674" data-name="Sangitan">Sangitan</button>
+                            <button class="location-btn" data-lat="15.4850" data-lng="120.9520" data-name="Aduas Centro">Aduas Centro</button>
+                            <button class="location-btn" data-lat="15.4870" data-lng="120.9480" data-name="Aduas Norte">Aduas Norte</button>
+                            <button class="location-btn" data-lat="15.4820" data-lng="120.9530" data-name="Aduas Sur">Aduas Sur</button>
+                            <button class="location-btn" data-lat="15.4780" data-lng="120.9470" data-name="Bitas">Bitas</button>
+                            <button class="location-btn" data-lat="15.4750" data-lng="120.9550" data-name="Dimasalang">Dimasalang</button>
+                            <button class="location-btn" data-lat="15.4790" data-lng="120.9490" data-name="Matadero">Matadero</button>
+                            <button class="location-btn" data-lat="15.48978" data-lng="120.97073" data-name="NEHS">NEHS</button>
+                            <button class="location-btn" data-lat="15.48589" data-lng="120.97413" data-name="Science HS">Science HS</button>
+                            <button class="location-btn" data-lat="15.4770" data-lng="120.9540" data-name="PAU">PAU</button>
+                            <button class="location-btn" data-lat="15.48518" data-lng="120.97566" data-name="Wesleyan">Wesleyan</button>
+                            <button class="location-btn" data-lat="15.49732" data-lng="120.97613" data-name="Midway">Midway</button>
+                            <button class="location-btn" data-lat="15.48628" data-lng="120.97204" data-name="Waltermart">Waltermart</button>
+                            <button class="location-btn" data-lat="15.48813" data-lng="120.96788" data-name="SM Megacenter">SM Megacenter</button>
+                        </div>
+                        <div class="passenger-type">
+                            <button class="passenger-btn active" data-type="single" data-pax="1">👤 Single (1)</button>
+                            <button class="passenger-btn" data-type="group" data-pax="2">👥 Group (2+)</button>
+                            <button class="passenger-btn" data-type="pwd" data-pax="1">♿ PWD (1)</button>
+                            <button class="passenger-btn" data-type="pwd-multi" data-pax="2">♿ PWD (2+)</button>
+                        </div>
+                        <div class="ride-info">
+                            <div>
+                                <div style="font-size: 1.2rem; margin-bottom: 5px;">To:</div>
+                                <div id="destination" style="font-weight: bold;">Good Samaritan Colleges</div>
+                            </div>
+                            <div class="price" id="price">₱20</div>
+                        </div>
+                        <button id="bookRideBtn" class="btn btn-primary" style="width: 100%; font-size: 1.3rem;" onclick="bookRide()">🚗 Book Ride Now</button>
+                    </div>
+<div id="driverPanel" style="display:none; padding:20px;">
+  <h2>📩 Ride Requests</h2>
+  <div id="requestsList"></div>
+</div>
+                    <div id="rideTracker" class="tracker" style="display: none;">
+                        <h3>📱 Ride Tracker</h3>
+                        <div class="tracker-stage">
+                            <div class="tracker-dot active"></div>
+                            <div class="tracker-line"></div>
+                            <div class="tracker-dot"></div>
+                            <div class="tracker-line"></div>
+                            <div class="tracker-dot"></div>
+                        </div>
+                        <div style="display: flex; gap: 20px; font-size: 0.9rem; color: #666;">
+                            <span>📍 Driver Found</span>
+                            <span>🚗 En Route</span>
+                            <span>✅ Arrived</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Section -->
+                <div id="profile" class="section">
+                    <h2>👤 Profile</h2>
+                    <div class="profile-grid">
+                        <div class="profile-item">
+                            <h3 id="profileName"></h3>
+                            <p><strong>ID:</strong> <span id="profileId"></span></p>
+                            <p><strong>Type:</strong> <span id="profileType"></span></p>
+                            <p><strong>Total Rides:</strong> <span id="totalRides">12</span></p>
+                            <p><strong>Avg Rating:</strong> <span id="avgRating">4.8⭐</span></p>
+                        </div>
+                        <div class="profile-item">
+                            <h3>Payment Method</h3>
+                            <p>💵 Cash</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Favorites Section -->
+                <div id="favorites" class="section">
+                    <h2>⭐ Favorites</h2>
+                    <div class="location-selector">
+                        <button class="location-btn active">🏠 Good Samaritan</button>
+                        <button class="location-btn">📚 NEHS</button>
+                        <button class="location-btn">🏫 Science HS</button>
+                                               <button class="location-btn">🏛️ PAU</button>
+                    </div>
+                </div>
+
+                <!-- History Section -->
+                <div id="history" class="section">
+                    <h2>📋 History</h2>
+                    <div class="history-item">
+                        <div><strong>Sangitan → Good Samaritan</strong><br><small>Today 2:30 PM • ₱20 • 5min • ⭐⭐⭐⭐⭐</small></div>
+                    </div>
+                    <div class="history-item">
+                        <div><strong>PAU → Matadero</strong><br><small>Yesterday 4:15 PM • ₱30 • 4min • ⭐⭐⭐⭐</small></div>
+                    </div>
+                </div>
+                <!-- Rating Section -->
+                <div id="rating" class="section">
+                    <h2>⭐ Rate Driver</h2>
+                    <div class="rating-item">
+                        <div>
+                            <strong>Juan Dela Cruz</strong><br>
+                            <small>#ABC123 • Tricycle • 4.8⭐</small>
+                        </div>
+                        <div class="stars" id="rateStars">⭐⭐⭐⭐⭐</div>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="submitRating()">✅ Submit Rating</button>
+                </div>
+
+                <!-- Driver Address Section -->
+                <div id="address" class="section" style="display: none;">
+                    <h2>📍 Addresses</h2>
+                    <div class="profile-grid">
+                        <div class="profile-item">
+                            <h3>🏠 Home Base</h3>
+                            <p>Good Samaritan Colleges<br><small>15.491711, 120.973841</small></p>
+                        </div>
+                        <div class="profile-item">
+                            <h3>📍 Current Location</h3>
+                            <p>Aduas Centro<br><small>15.4850, 120.9520 • Online</small></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Driver Trips Section -->
+                <div id="trips" class="section" style="display: none;">
+                    <h2>🚗 Active Trips</h2>
+                    <div class="history-item">
+                        <div>
+                            <strong>Juan D. → Good Samaritan</strong><br>
+                            <small>2min ago • 1.2km • ₱20 • En Route</small>
+                        </div>
+                        <button class="btn btn-primary" style="padding: 8px 15px; font-size: 0.9rem;">✅ Completed</button>
+                    </div>
+                    <div class="history-item">
+                        <div>
+                            <strong>Maria S. → NEHS</strong><br>
+                            <small>5min ago • 0.8km • ₱30 • Waiting</small>
+                        </div>
+                        <button class="btn btn-primary" style="padding: 8px 15px; font-size: 0.9rem;">🚗 Start Trip</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map, userMarker, currentUserType = '', currentUserData = {}, routeLine;
+        let listenerInitialized = false;
+        let notified = false;
+        const centerLat = 15.491711, centerLng = 120.973841, radius = 2000; // 2km radius LOCKED
+        let rideStages = ['Driver Found', 'En Route', 'Arrived'];
+
+        function initMap() {
+    map = L.map('map').setView([centerLat, centerLng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    L.circle([centerLat, centerLng], { 
+        color: '#ff6b6b', fillColor: '#ff6b6b', fillOpacity: 0.1, 
+        radius: radius, weight: 3 
+    }).addTo(map);
+    
+    L.marker([centerLat, centerLng]).addTo(map)
+        .bindPopup('🏫 Good Samaritan Colleges<br><small>Service Center - 2km Radius</small>')
+        .openPopup();
+
+    // ✅ ADD THIS
+    showRoute();
+}
+
+        function showLoginForm(type) {
+            document.getElementById('landing').style.display = 'none';
+            document.getElementById('loginForms').style.display = 'block';
+            if (type === 'user') {
+                document.getElementById('userLoginForm').style.display = 'block';
+                document.getElementById('driverLoginForm').style.display = 'none';
+                document.getElementById('userName').focus();
+            } else {
+                document.getElementById('driverLoginForm').style.display = 'block';
+                document.getElementById('userLoginForm').style.display = 'none';
+                document.getElementById('driverId').focus();
+            }
+            // Clear previous errors
+            clearLoginErrors();
+        }
+
+        function clearLoginErrors() {
+            document.getElementById('userError').style.display = 'none';
+            document.getElementById('driverError').style.display = 'none';
+        }
+
+        function backToLanding() {
+            document.getElementById('loginForms').style.display = 'none';
+            document.getElementById('landing').style.display = 'flex';
+            clearLoginErrors();
+            document.getElementById('userName').value = '';
+            document.getElementById('driverId').value = '';
+        }
+
+        function login(type) {
+            clearLoginErrors();
+            
+            if (type === 'user') {
+                const name = document.getElementById('userName').value.trim();
+                if (name && name.length >= 2) {
+                    currentUserData = { 
+                        name: name, 
+                        type: 'user', 
+                        id: 'USER' + Math.floor(Math.random()*10000) 
+                    };
+                    showDashboard();
+                } else {
+                    document.getElementById('userError').style.display = 'block';
+                    document.getElementById('userName').focus();
+                }
+            } else {
+                const id = document.getElementById('driverId').value.trim();
+                // Check for exactly 6 digits
+                if (id && /^\d{6}$/.test(id)) {
+                    currentUserData = { 
+                        name: `Driver #${id}`, 
+                        type: 'driver', 
+                        id: `#${id}` 
+                    };
+                    showDashboard();
+                } else {
+                    document.getElementById('driverError').style.display = 'block';
+                    document.getElementById('driverId').focus();
+                }
+            }
+        }
+
+        function showDashboard() {
+    notified = false; // ✔ reset kada login
+
+    document.getElementById('loginForms').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+
+    setTimeout(() => {
+        if (!map) initMap();
+    }, 100);
+
+    document.getElementById('userType').textContent =
+        currentUserData.type === 'user'
+        ? `👤 Welcome, ${currentUserData.name}!`
+        : `🚗 ${currentUserData.name} Dashboard`;
+
+    document.getElementById('profileName').textContent = currentUserData.name;
+    document.getElementById('profileId').textContent = currentUserData.id;
+    document.getElementById('profileType').textContent =
+        currentUserData.type === 'user' ? 'Passenger' : 'Driver';
+
+    setupNavigation();
+}
+
+function setupNavigation() {
+    const nav = document.getElementById('userNav');
+    nav.innerHTML = '';
+
+    if (currentUserData.type === 'user') {
+
+        document.getElementById("bookRideBtn").style.display = "block";
+
+        const userNavItems = [
+            {text: '🏠 Home', id: 'home'},
+            {text: '👤 Profile', id: 'profile'},
+            {text: '⭐ Favorites', id: 'favorites'},
+            {text: '📋 History', id: 'history'},
+            {text: '⭐ Rating', id: 'rating'}
+        ];
+
+        userNavItems.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.textContent = item.text;
+            btn.onclick = (e) => showSection(item.id, e.target);
+            nav.appendChild(btn);
+        });
+
+    } else if (currentUserData.type === 'driver') {
+
+        document.getElementById("bookRideBtn").style.display = "none";
+        document.getElementById('driverPanel').style.display = 'block';
+
+        const driverNavItems = [
+            {text: '🏠 Home', id: 'home'},
+            {text: '👤 Profile', id: 'profile'},
+            {text: '📍 Address', id: 'address'},
+            {text: '⭐ Rating', id: 'rating'},
+            {text: '📋 History', id: 'history'},
+            {text: '🚗 Trips', id: 'trips'}
+        ];
+
+        driverNavItems.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.textContent = item.text;
+            btn.onclick = () => showSection(item.id);
+            nav.appendChild(btn);
+        });
+
+        if (!listenerInitialized) {
+    listenerInitialized = true;
+
+    db.collection("rides").where("status", "!=", "completed").orderBy("status").orderBy("time", "desc").onSnapshot((snapshot) => {
+        const list = document.getElementById("requestsList");
+        list.innerHTML = "";
+
+        snapshot.forEach(doc => {
+            const ride = doc.data();
+            if (ride.status === "completed") return;
+
+            const div = document.createElement("div");
+     
+            div.className = "request-card";
+            div.setAttributed("data-id", doc.id);
+
+div.innerHTML = `
+    <div class="request-info">
+        <p><strong>Passenger:</strong> ${ride.passenger}</p>
+        <p><strong>From:</strong> ${ride.pickup}</p>
+        <p><strong>To:</strong> ${ride.dropoff}</p>
+        <p class="fare">💰 ${ride.fare}</p>
+    </div>
+
+    <div class="request-actions">
+        ${ride.status === "pending" ? 
+            `<button class="accept-btn" onclick="acceptRide('${doc.id}')">✅ Accept</button>` 
+            : ''
+        }
+
+        ${ride.status === "accepted" ? 
+            `<button class="complete-btn" onclick="arrivedRide('${doc.id}')">📍 Arrived</button>` 
+            : ''
+        }
+
+        ${ride.status === "arrived" ? 
+            `<button class="complete-btn" onclick="completeRide('${doc.id}')">🏁 End</button>` 
+            : ''
+        }
+    </div>
+`;
+
+            list.appendChild(div); // ✅ IMPORTANT!
+        });
+    });
+  }
+ }
+}
+
+
+function acceptRide(id) {
+    const ref = db.collection("rides").doc(id);
+
+    db.runTransaction(async (t) => {
+        const doc = await t.get(ref);
+
+        if (!doc.exists) return;
+
+        const ride = doc.data();
+
+        // 🔥 CHECK muna
+        if (ride.status !== "pending") {
+            alert("❌ Ride already taken!");
+            return;
+        }
+
+        // ✅ SAFE update
+        t.update(ref, {
+            status: "accepted",
+            driver: currentUserData.name
+        });
+    }).then(() => {
+        alert("✅ You accepted the ride!");
+    }).catch(err => {
+        console.error(err);
+        alert("❌ Failed to accept ride");
+    });
+}
+
+function completeRide(id) {
+    db.collection("rides").doc(id).update({
+        status: "completed"
+    }).then(() => {
+
+        // 🔥 REMOVE agad sa UI
+        const card = document.querySelector(`[data-id='${id}']`);
+        if (card) card.remove();
+
+        alert("✅ Ride completed!");
+    });
+}      
+            
+        function logout() {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('driverPanel').style.display = 'none';
+            document.getElementById('landing').style.display = 'flex';
+            currentUserData = {};
+            document.getElementById('rideTracker').style.display = 'none';
+            if (map) map.setView([centerLat, centerLng], 15);
+        }
+
+        function showSection(sectionId, el) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById(sectionId).classList.add('active');
+
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    
+    if (el) el.classList.add('active');
+}
+
+        function calculateFare(passengerType, paxCount) {
+            switch(passengerType) {
+                case 'single':
+                    return 20;
+                case 'group':
+                    return 15 * paxCount;
+                case 'pwd':
+                    return paxCount === 1 ? 15 : 10 * paxCount;
+                case 'pwd-multi':
+                    return 10 * paxCount;
+                default:
+                    return 20;
+            }
+        }
+
+        // FIXED Location buttons functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Location buttons
+            document.querySelectorAll('.location-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const lat = parseFloat(this.dataset.lat);
+                    const lng = parseFloat(this.dataset.lng);
+                    const distance = getDistance(centerLat, centerLng, lat, lng);
+                    
+                    if (distance > radius) {
+                        alert(`❌ Location "${this.dataset.name}" is ${Math.round(distance/1000)}km away - outside 2km service radius!`);
+                        return;
+                    }
+                    
+                    // Update active button
+                    document.querySelectorAll('.location-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update destination display
+                    document.getElementById('destination').textContent = this.dataset.name;
+                    
+                    // Update map marker
+                    if (userMarker) map.removeLayer(userMarker);
+                    if (routeLine) map.removeLayer(routeLine);
+                    
+                    userMarker = L.marker([lat, lng]).addTo(map)
+                        .bindPopup(`📍 Pickup: ${this.dataset.name}`);
+                    
+                    map.setView([lat, lng], 16);
+                    updatePrice();
+                });
+            });
+
+            // Passenger type buttons
+            document.querySelectorAll('.passenger-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.querySelectorAll('.passenger-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    showRoute();
+                    updatePrice();
+                });
+            });
+        });
+
+        function updatePrice() {
+            const activePassenger = document.querySelector('.passenger-btn.active');
+            if (activePassenger) {
+                const passengerType = activePassenger.dataset.type;
+                const paxCount = parseInt(activePassenger.dataset.pax);
+                const fare = calculateFare(passengerType, paxCount);
+                document.getElementById('price').textContent = `₱${fare}`;
+            }
+        }
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c; // Distance in meters
+        }
+
+        function bookRide() {
+            lastStatus = null; 
+            notified = false;
+    const activeLocation = document.querySelector('.location-btn.active');
+
+    let dest = document.getElementById('destination').textContent;
+    let dropLat = null;
+    let dropLng = null;
+
+    if (activeLocation) {
+        dropLat = parseFloat(activeLocation.dataset.lat);
+        dropLng = parseFloat(activeLocation.dataset.lng);
+    }
+
+    const rideId = "RIDE_" + Date.now();
+    currentUserData.currentRideId = rideId;
+    const fare = document.getElementById('price').textContent;
+
+db.collection("rides").doc(rideId).set({
+    rideId: rideId,
+    passenger: currentUserData.name,
+    pickup: "Good Samaritan Colleges",
+    dropoff: dest,
+    dropLat: dropLat,
+    dropLng: dropLng,
+    fare: fare,
+    status: "pending",
+    driver: null,
+    time: firebase.firestore.FieldValue.serverTimestamp()
+});
+
+// 🔥 SAVE CURRENT RIDE
+currentUserData.currentRideId = rideId;
+
+// 🔍 UX
+alert("🔍 Finding driver...");
+
+    document.getElementById('rideTracker').style.display = 'block';
+    listenToRideUpdates(rideId);
+}
+
+       function showRoute() {
+    if (routeLine) map.removeLayer(routeLine);
+
+    const activeLocation = document.querySelector('.location-btn.active');
+
+    // 🔥 FIX: check kung null
+    if (!activeLocation) {
+        console.log("Walang selected location!");
+        return;
+    }
+
+    const start = [centerLat, centerLng];
+    const end = [
+        parseFloat(activeLocation.dataset.lat),
+        parseFloat(activeLocation.dataset.lng)
+    ];
+
+    routeLine = L.polyline([start, end], {
+        color: '#ff6b6b',
+        weight: 5
+    }).addTo(map);
+
+    map.setView([centerLat, centerLng], 15);
+}
+
+        function simulateRideProgress() {
+            let stage = 0;
+            const trackerDots = document.querySelectorAll('.tracker-dot');
+            const trackerLines = document.querySelectorAll('.tracker-line');
+            
+            const interval = setInterval(() => {
+                // Reset previous stage
+                if (stage > 0) {
+                    trackerDots[stage-1].classList.remove('active');
+                    if (stage > 1) trackerLines[stage-2].classList.remove('active');
+                }
+                
+                stage++;
+                if (stage < trackerDots.length) {
+                    trackerDots[stage].classList.add('active');
+                    if (stage > 1) trackerLines[stage-1].classList.add('active');
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        alert('🎉 Ride completed successfully! Enjoy your trip! ⭐');
+                        document.getElementById('rideTracker').style.display = 'none';
+                        // Reset tracker
+                        trackerDots.forEach(dot => dot.classList.remove('active'));
+                        trackerLines.forEach(line => line.classList.remove('active'));
+                        trackerDots[0].classList.add('active');
+                    }, 2000);
+                }
+            }, 5000);
+        }
+
+        function submitRating() {
+            alert('✅ Rating submitted successfully! Thank you for your feedback! ⭐');
+        }
+
+        // Allow Enter key for login
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const userForm = document.getElementById('userLoginForm');
+                const driverForm = document.getElementById('driverLoginForm');
+                if (userForm.style.display !== 'none') {
+                    login('user');
+                } else if (driverForm.style.display !== 'none') {
+                    login('driver');
+                }
+            }
+        });
+
+let lastStatus = null; // 🔥 IMPORTANT
+
+function listenToRideUpdates(rideId) {
+    db.collection("rides").doc(rideId)
+    .onSnapshot((doc) => {
+        if (!doc.exists) return;
+
+        const ride = doc.data();
+
+        const tracker = document.getElementById('rideTracker');
+        const dots = document.querySelectorAll('.tracker-dot');
+        const lines = document.querySelectorAll('.tracker-line');
+
+        tracker.style.display = 'block';
+
+        // RESET UI
+        dots.forEach(dot => dot.classList.remove('active'));
+        lines.forEach(line => line.classList.remove('active'));
+
+        // 🚨 ONLY trigger kapag nagbago ang status
+        if (ride.status !== lastStatus) {
+
+            if (ride.status === "accepted") {
+                dots[0].classList.add('active');
+                alert("🚗 Driver is on the way!");
+            }
+
+            if (ride.status === "arrived") {
+                dots[0].classList.add('active');
+                dots[1].classList.add('active');
+                lines[0].classList.add('active');
+                alert("📍 Driver has arrived!");
+            }
+
+            if (ride.status === "completed") {
+                dots[0].classList.add('active');
+                dots[1].classList.add('active');
+                dots[2].classList.add('active');
+                lines.forEach(line => line.classList.add('active'));
+
+                alert("🎉 Ride completed!");
+                tracker.style.display = 'none';
+            }
+
+            lastStatus = ride.status; // 🔥 SAVE LAST STATUS
+        }
+    });
+}
+    </script>
+<!-- Firebase Scripts -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>	
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+  // Firebase Config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAg4g_Ss0ANcD6fi_N3disZES8s40_zLVU",
+    authDomain: "para-web-64d34.firebaseapp.com",
+    projectId: "para-web-64d34",
+    storageBucket: "para-web-64d34.firebasestorage.app",
+    messagingSenderId: "181458365434",
+    appId: "1:181458365434:web:5ec74b2998ca02e77a5243"
+  };
+	
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  if (!localStorage.getItem("tested")) {
+    db.collection("test").add({
+        message: "connected!"
+    });
+    localStorage.setItem("tested", "yes");
+}
+</script>
+</body>
+</html>
+
